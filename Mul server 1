@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#define PORT 4444
+#define BUF_SIZE 2000
+#define CLADDR_LEN 100
+
+int main() {
+    struct sockaddr_in addr, cl_addr;
+    int sockfd, len, ret, newsockfd;
+    char buffer[BUF_SIZE];
+    pid_t childpid;
+    char clientAddr[CLADDR_LEN];
+
+    // Create socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Error creating socket");
+        exit(EXIT_FAILURE);
+    }
+    printf("Socket created...\n");
+
+    // Initialize address structure
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(PORT);
+
+    // Bind socket
+    ret = bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+    if (ret < 0) {
+        perror("Error binding");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Binding done...\n");
+
+    // Listen for incoming connections
+    if (listen(sockfd, 5) < 0) {
+        perror("Error in listen");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Waiting for a connection...\n");
+
+    while (1) { // Infinite loop
+        len = sizeof(cl_addr);
+        newsockfd = accept(sockfd, (struct sockaddr*)&cl_addr, &len);
+        if (newsockfd < 0) {
+            perror("Error accepting connection");
+            continue; // Keep the server running
+        }
+
+        inet_ntop(AF_INET, &(cl_addr.sin_addr), clientAddr, CLADDR_LEN);
+        printf("Connection accepted from %s\n", clientAddr);
+
+        // Create a child process to handle the client
+        if ((childpid = fork()) == 0) { // Child process
+            close(sockfd); // Child doesn't need the listening socket
+
+            while (1) {
+                memset(buffer, 0, BUF_SIZE);
+                ret = recv(newsockfd, buffer, BUF_SIZE, 0);
+                if (ret <= 0) {
+                    printf("Client disconnected or error receiving data\n");
+                    break;
+                }
+                printf("Received data from %s: %s\n", clientAddr, buffer);
+
+                ret = send(newsockfd, buffer, strlen(buffer), 0);
+                if (ret < 0) {
+                    perror("Error sending data");
+                    break;
+                }
+                printf("Sent data to %s: %s\n", clientAddr, buffer);
+            }
+
+            close(newsockfd); // Close the socket for the client
+            exit(0); // Terminate child process
+        }
+
+        close(newsockfd); // Parent closes the client socket
+    }
+
+    close(sockfd); // Close the server socket
+    return 0;
+}
