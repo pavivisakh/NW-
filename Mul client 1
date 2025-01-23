@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#define PORT 4444
+#define BUF_SIZE 2000
+
+int main(int argc, char** argv) {
+    struct sockaddr_in addr;
+    int sockfd, ret;
+    char buffer[BUF_SIZE];
+    char *serverAddr;
+
+    if (argc < 2) {
+        printf("Usage: %s <IP address>\n", argv[0]);
+        exit(1);
+    }
+
+    serverAddr = argv[1];
+
+    // Create socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Error creating socket");
+        exit(1);
+    }
+    printf("Socket created...\n");
+
+    // Initialize server address structure
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(PORT);
+
+    // Convert IP address from text to binary form
+    if (inet_pton(AF_INET, serverAddr, &addr.sin_addr) <= 0) {
+        perror("Invalid IP address");
+        close(sockfd);
+        exit(1);
+    }
+
+    // Connect to the server
+    ret = connect(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+    if (ret < 0) {
+        perror("Error connecting to the server");
+        close(sockfd);
+        exit(1);
+    }
+    printf("Connected to the server...\n");
+
+    // Communication loop
+    memset(buffer, 0, BUF_SIZE);
+    printf("Enter your message(s):\n");
+    while (fgets(buffer, BUF_SIZE, stdin) != NULL) {
+        // Send data to the server
+        ret = send(sockfd, buffer, strlen(buffer), 0);
+        if (ret < 0) {
+            perror("Error sending data");
+            continue;
+        }
+
+        // Receive data from the server
+        ret = recv(sockfd, buffer, BUF_SIZE, 0);
+        if (ret < 0) {
+            perror("Error receiving data");
+            continue;
+        }
+        buffer[ret] = '\0'; // Null-terminate the received data
+        printf("Received: %s\n", buffer);
+    }
+
+    close(sockfd); // Close the socket
+    return 0;
+}
