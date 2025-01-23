@@ -1,29 +1,27 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<string.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
 
 #define PORT 4444
 #define BUF_SIZE 2000
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     struct sockaddr_in addr;
     int sockfd, ret;
     char buffer[BUF_SIZE];
     char *serverAddr;
 
     if (argc < 2) {
-        printf("Usage: %s <IP address>\n", argv[0]);
+        printf("Usage: %s <server IP address>\n", argv[0]);
         exit(1);
     }
 
     serverAddr = argv[1];
 
-    // Create socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Error creating socket");
@@ -31,48 +29,38 @@ int main(int argc, char** argv) {
     }
     printf("Socket created...\n");
 
-    // Initialize server address structure
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
+    addr.sin_addr.s_addr = inet_addr(serverAddr);
 
-    // Convert IP address from text to binary form
-    if (inet_pton(AF_INET, serverAddr, &addr.sin_addr) <= 0) {
-        perror("Invalid IP address");
-        close(sockfd);
-        exit(1);
-    }
-
-    // Connect to the server
-    ret = connect(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+    ret = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
     if (ret < 0) {
         perror("Error connecting to the server");
-        close(sockfd);
         exit(1);
     }
     printf("Connected to the server...\n");
 
-    // Communication loop
-    memset(buffer, 0, BUF_SIZE);
-    printf("Enter your message(s):\n");
-    while (fgets(buffer, BUF_SIZE, stdin) != NULL) {
-        // Send data to the server
+    while (1) {
+        printf("Enter your message: ");
+        memset(buffer, 0, BUF_SIZE);
+        fgets(buffer, BUF_SIZE, stdin);
+
         ret = send(sockfd, buffer, strlen(buffer), 0);
         if (ret < 0) {
             perror("Error sending data");
-            continue;
+            exit(1);
         }
 
-        // Receive data from the server
+        memset(buffer, 0, BUF_SIZE);
         ret = recv(sockfd, buffer, BUF_SIZE, 0);
         if (ret < 0) {
             perror("Error receiving data");
-            continue;
+            exit(1);
         }
-        buffer[ret] = '\0'; // Null-terminate the received data
-        printf("Received: %s\n", buffer);
+        printf("Server: %s", buffer);
     }
 
-    close(sockfd); // Close the socket
+    close(sockfd);
     return 0;
 }
