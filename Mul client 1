@@ -1,10 +1,11 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<sys/types.h>
-#include<sys/socket.h>
-#include<string.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h> // For close()
 
 #define PORT 4444
 #define BUF_SIZE 2000
@@ -15,6 +16,7 @@ int main(int argc, char **argv) {
     char buffer[BUF_SIZE];
     char *serverAddr;
 
+    // Ensure the server IP is provided as a command-line argument
     if (argc < 2) {
         printf("Usage: %s <server IP address>\n", argv[0]);
         exit(1);
@@ -22,6 +24,7 @@ int main(int argc, char **argv) {
 
     serverAddr = argv[1];
 
+    // Create the socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Error creating socket");
@@ -29,11 +32,13 @@ int main(int argc, char **argv) {
     }
     printf("Socket created...\n");
 
+    // Configure the server address structure
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = inet_addr(serverAddr);
 
+    // Connect to the server
     ret = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
     if (ret < 0) {
         perror("Error connecting to the server");
@@ -41,26 +46,43 @@ int main(int argc, char **argv) {
     }
     printf("Connected to the server...\n");
 
+    // Main communication loop
     while (1) {
         printf("Enter your message: ");
         memset(buffer, 0, BUF_SIZE);
         fgets(buffer, BUF_SIZE, stdin);
 
+        // Remove newline character from input
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0';
+        }
+
+        // Send the message to the server
         ret = send(sockfd, buffer, strlen(buffer), 0);
         if (ret < 0) {
             perror("Error sending data");
-            exit(1);
+            break;
         }
 
+        // Exit if the user types "exit"
+        if (strcmp(buffer, "exit") == 0) {
+            printf("Exiting...\n");
+            break;
+        }
+
+        // Receive the server's response
         memset(buffer, 0, BUF_SIZE);
         ret = recv(sockfd, buffer, BUF_SIZE, 0);
         if (ret < 0) {
             perror("Error receiving data");
-            exit(1);
+            break;
         }
-        printf("Server: %s", buffer);
+
+        printf("Server: %s\n", buffer);
     }
 
+    // Close the socket
     close(sockfd);
     return 0;
 }
