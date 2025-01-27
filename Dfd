@@ -1,0 +1,53 @@
+@startdfd
+!define RECTANGLE class
+
+' External entities
+RECTANGLE Student {
+  +Request Timetable
+  +Request Marks
+}
+RECTANGLE FacultyMember {
+  +Report Absence
+  +Update Availability
+}
+RECTANGLE Admin {
+  +Update Class Schedule
+  +Update Marks
+}
+
+' Processes
+RECTANGLE ManageClassSchedules {
+  +Retrieve Class Schedules
+  +Update Class Schedules
+}
+RECTANGLE ManageFacultyAvailability {
+  +Track Faculty Availability
+  +Update Availability
+}
+RECTANGLE TrackStudentEngagement {
+  +Display Timetable
+  +Display Marks
+}
+RECTANGLE HandleTeacherAbsences {
+  +Detect Absence
+  +Notify Faculty
+  +Provide Resources
+}
+
+' Data Stores
+class ClassScheduleDatabase
+class FacultyAvailabilityDatabase
+class StudentTimetableDatabase
+class InternalMarksDatabase
+class ResourceRepository
+
+' Data Flows
+Student -down-> TrackStudentEngagement : Request Timetable
+Student -down-> TrackStudentEngagement : Request Marks
+FacultyMember -down-> HandleTeacherAbsences : Report Absence
+FacultyMember -down-> ManageFacultyAvailability : Update Availability
+Admin -down-> ManageClassSchedules : Update Class Schedule
+Admin -down-> TrackStudentEngagement : Update Marks
+HandleTeacherAbsences -down-> ClassScheduleDatabase : Reschedule Class
+HandleTeacherAbsences -down-> ResourceRepository : Provide Resources
+@enddfd
